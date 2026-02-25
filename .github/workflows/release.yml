@@ -1,26 +1,14 @@
-name: Release
+name: Release Build
 
 on:
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
-
-    runs-on: ${{ matrix.os }}
-
+  # Linux AppImage
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,32 +16,134 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Add target
-        run: rustup target add ${{ matrix.target }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config libasound2-dev
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release
 
-      - name: Package
-        shell: bash
+      - name: Install appimage-builder
+        run: pip install appimage-builder
+
+      - name: Create AppRun
         run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cd target/${{ matrix.target }}/release
-            powershell -Command "Compress-Archive -Path snake_rogue.exe -DestinationPath snake_rogue-windows-x64.zip"
-            echo "ASSET_NAME=snake_rogue-windows-x64.zip" >> $GITHUB_ENV
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            cd target/${{ matrix.target }}/release
-            tar -czvf snake_rogue-${{ matrix.target }}.tar.gz snake_rogue
-            echo "ASSET_NAME=snake_rogue-${{ matrix.target }}.tar.gz" >> $GITHUB_ENV
-          else
-            cd target/${{ matrix.target }}/release
-            tar -czvf snake_rogue-linux-x64.tar.gz snake_rogue
-            echo "ASSET_NAME=snake_rogue-linux-x64.tar.gz" >> $GITHUB_ENV
-          fi
+          mkdir -p snake_rogue.AppDir/usr/bin
+          cp target/release/snake_rogue snake_rogue.AppDir/usr/bin/
+          cat > snake_rogue.AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          exec "$(dirname "$(readlink -f "$0")")/usr/bin/snake_rogue" "$@"
+          EOF
+          chmod +x snake_rogue.AppDir/AppRun
+
+      - name: Create appxr.yml
+        run: |
+          cat > snake_rogue.AppDir/apprun-args.yml << 'EOF'
+          architecture: x86_64
+          args:
+            - --gl-version
+            - "3.3"
+          EOF
+
+      - name: Create desktop file
+        run: |
+          mkdir -p snake_rogue.AppDir/usr/share/applications
+          cat > snake_rogue.AppDir/usr/share/applications/snake_rogue.desktop << 'EOF'
+          [Desktop Entry]
+          Name=Snake Rogue
+          Exec=snake_rogue
+          Type=Application
+          Categories=Game;
+          EOF
+          mkdir -p snake_rogue.AppDir/usr/share/icons/hicolor/256x256/apps
+          # Use a placeholder icon or skip for now
+
+      - name: Build AppImage
+        run: |
+          cd snake_rogue.AppDir
+          appimage-builder --generate-no-appimage
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: target/${{ matrix.target }}/release/${{ env.ASSET_NAME }}
+          files: snake_rogue.AppDir/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Windows exe
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Create zip package
+        shell: powershell
+        run: |
+          Compress-Archive -Path target/release/snake_rogue.exe -DestinationPath snake_rogue-windows-x64.zip
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: snake_rogue-windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # macOS app
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Create app bundle
+        run: |
+          mkdir -p snake_rogue.app/Contents/MacOS
+          cp target/x86_64-apple-darwin/release/snake_rogue snake_rogue.app/Contents/MacOS/
+          
+          cat > snake_rogue.app/Contents/Info.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>snake_rogue</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.snake.rogue</string>
+              <key>CFBundleName</key>
+              <string>Snake Rogue</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.13</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Create dmg
+        run: |
+          hdiutil create -volname "Snake Rogue" -srcfolder snake_rogue.app -ov -format UDZO snake_rogue-macos-x64.dmg
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: snake_rogue-macos-x64.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
