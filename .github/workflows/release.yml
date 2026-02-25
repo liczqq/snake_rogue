@@ -32,11 +32,14 @@ jobs:
           tar -czvf snake_rogue-linux-x64.tar.gz snake_rogue-linux-x64
 
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          files: target/release/snake_rogue-linux-x64.tar.gz
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/release/snake_rogue-linux-x64.tar.gz
+          asset_name: snake_rogue-linux-x64.tar.gz
+          asset_content_type: application/gzip
 
   # Windows
   build-windows:
@@ -59,11 +62,14 @@ jobs:
           Compress-Archive -Path target/release/snake_rogue-windows-x64 -DestinationPath snake_rogue-windows-x64.zip
 
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          files: snake_rogue-windows-x64.zip
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: snake_rogue-windows-x64.zip
+          asset_name: snake_rogue-windows-x64.zip
+          asset_content_type: application/zip
 
   # macOS x86_64
   build-macos-x64:
@@ -85,11 +91,14 @@ jobs:
           tar -czvf snake_rogue-macos-x64.tar.gz snake_rogue-macos-x64
 
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          files: snake_rogue-macos-x64.tar.gz
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: snake_rogue-macos-x64.tar.gz
+          asset_name: snake_rogue-macos-x64.tar.gz
+          asset_content_type: application/gzip
 
   # macOS ARM64
   build-macos-arm64:
@@ -111,8 +120,11 @@ jobs:
           tar -czvf snake_rogue-macos-arm64.tar.gz snake_rogue-macos-arm64
 
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          files: snake_rogue-macos-arm64.tar.gz
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: snake_rogue-macos-arm64.tar.gz
+          asset_name: snake_rogue-macos-arm64.tar.gz
+          asset_content_type: application/gzip
