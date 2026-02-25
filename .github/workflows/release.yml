@@ -12,16 +12,12 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: snake_rogue-linux
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: snake_rogue-windows.exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: snake_rogue-macos-x86
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: snake_rogue-macos-arm
 
     runs-on: ${{ matrix.os }}
 
@@ -32,74 +28,32 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Add Linux cross compilation support
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          rustup target add ${{ matrix.target }}
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
 
       - name: Build
-        run: |
-          cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package Linux AppImage
-        if: matrix.os == 'ubuntu-latest'
+      - name: Package
+        shell: bash
         run: |
-          # Install appimage-builder
-          pip install appimage-builder
-          # Create AppRun
-          mkdir -p squashfs-root/usr/bin
-          cp target/${{ matrix.target }}/release/snake_rogue squashfs-root/usr/bin/
-          # Create app.yml for AppImage
-          cat > app.yml << 'EOF'
-          appId: com.snake.rogue
-          runtime: org.freedesktop.Platform
-          runtimeVersion: '23.08'
-          sdk: org.freedesktop.Sdk
-          command: snake_rogue
-          sections:
-            - type: archive
-              path: .
-          EOF
-          appimage-builder --generate
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cd target/${{ matrix.target }}/release
+            powershell -Command "Compress-Archive -Path snake_rogue.exe -DestinationPath snake_rogue-windows-x64.zip"
+            echo "ASSET_NAME=snake_rogue-windows-x64.zip" >> $GITHUB_ENV
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            cd target/${{ matrix.target }}/release
+            tar -czvf snake_rogue-${{ matrix.target }}.tar.gz snake_rogue
+            echo "ASSET_NAME=snake_rogue-${{ matrix.target }}.tar.gz" >> $GITHUB_ENV
+          else
+            cd target/${{ matrix.target }}/release
+            tar -czvf snake_rogue-linux-x64.tar.gz snake_rogue
+            echo "ASSET_NAME=snake_rogue-linux-x64.tar.gz" >> $GITHUB_ENV
+          fi
 
-      - name: Create ZIP for Windows
-        if: matrix.os == 'windows-latest'
-        run: |
-          cd target/${{ matrix.target }}/release
-          powershell -Command "Compress-Archive -Path snake_rogue.exe -DestinationPath snake_rogue-windows.zip"
-
-      - name: Create tar.gz for macOS
-        if: matrix.os == 'macos-latest'
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar -czvf snake_rogue-${{ matrix.target }}.tar.gz snake_rogue
-
-      - name: Upload Release Asset (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: softprops/action-gh-release@v1
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
         with:
-          files: |
-            snake_rogue-${{ matrix.artifact_name }}.AppImage
-          draft: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Asset (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            target/${{ matrix.target }}/release/snake_rogue-windows.zip
-          draft: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Asset (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            target/${{ matrix.target }}/release/snake_rogue-${{ matrix.target }}.tar.gz
-          draft: false
+          files: target/${{ matrix.target }}/release/${{ env.ASSET_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
