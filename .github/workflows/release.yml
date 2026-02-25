@@ -157,9 +157,8 @@ jobs:
       - name: Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "*.tar.gz,*.tar.gz"
+          artifacts: "*.tar.gz"
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
           name: Release ${{ github.ref_name }}
-          generateReleaseNotes: true
