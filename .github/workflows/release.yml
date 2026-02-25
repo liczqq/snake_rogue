@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Linux AppImage
+  # Linux
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -24,54 +24,21 @@ jobs:
       - name: Build
         run: cargo build --release
 
-      - name: Install appimage-builder
-        run: pip install appimage-builder
-
-      - name: Create AppRun
+      - name: Package
         run: |
-          mkdir -p snake_rogue.AppDir/usr/bin
-          cp target/release/snake_rogue snake_rogue.AppDir/usr/bin/
-          cat > snake_rogue.AppDir/AppRun << 'EOF'
-          #!/bin/bash
-          exec "$(dirname "$(readlink -f "$0")")/usr/bin/snake_rogue" "$@"
-          EOF
-          chmod +x snake_rogue.AppDir/AppRun
-
-      - name: Create appxr.yml
-        run: |
-          cat > snake_rogue.AppDir/apprun-args.yml << 'EOF'
-          architecture: x86_64
-          args:
-            - --gl-version
-            - "3.3"
-          EOF
-
-      - name: Create desktop file
-        run: |
-          mkdir -p snake_rogue.AppDir/usr/share/applications
-          cat > snake_rogue.AppDir/usr/share/applications/snake_rogue.desktop << 'EOF'
-          [Desktop Entry]
-          Name=Snake Rogue
-          Exec=snake_rogue
-          Type=Application
-          Categories=Game;
-          EOF
-          mkdir -p snake_rogue.AppDir/usr/share/icons/hicolor/256x256/apps
-          # Use a placeholder icon or skip for now
-
-      - name: Build AppImage
-        run: |
-          cd snake_rogue.AppDir
-          appimage-builder --generate-no-appimage
+          cd target/release
+          mkdir -p snake_rogue-linux-x64
+          cp snake_rogue snake_rogue-linux-x64/
+          tar -czvf snake_rogue-linux-x64.tar.gz snake_rogue-linux-x64
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: snake_rogue.AppDir/*.AppImage
+          files: target/release/snake_rogue-linux-x64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Windows exe
+  # Windows
   build-windows:
     runs-on: windows-latest
     steps:
@@ -84,10 +51,12 @@ jobs:
       - name: Build
         run: cargo build --release
 
-      - name: Create zip package
+      - name: Package
         shell: powershell
         run: |
-          Compress-Archive -Path target/release/snake_rogue.exe -DestinationPath snake_rogue-windows-x64.zip
+          New-Item -ItemType Directory -Path target/release/snake_rogue-windows-x64 -Force
+          Copy-Item target/release/snake_rogue.exe target/release/snake_rogue-windows-x64/
+          Compress-Archive -Path target/release/snake_rogue-windows-x64 -DestinationPath snake_rogue-windows-x64.zip
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
@@ -96,8 +65,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # macOS app
-  build-macos:
+  # macOS x86_64
+  build-macos-x64:
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -106,44 +75,44 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build
+      - name: Build x86_64
         run: cargo build --release --target x86_64-apple-darwin
 
-      - name: Create app bundle
+      - name: Package x86_64
         run: |
-          mkdir -p snake_rogue.app/Contents/MacOS
-          cp target/x86_64-apple-darwin/release/snake_rogue snake_rogue.app/Contents/MacOS/
-          
-          cat > snake_rogue.app/Contents/Info.plist << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>snake_rogue</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.snake.rogue</string>
-              <key>CFBundleName</key>
-              <string>Snake Rogue</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>1.0</string>
-              <key>CFBundleVersion</key>
-              <string>1</string>
-              <key>LSMinimumSystemVersion</key>
-              <string>10.13</string>
-          </dict>
-          </plist>
-          EOF
-
-      - name: Create dmg
-        run: |
-          hdiutil create -volname "Snake Rogue" -srcfolder snake_rogue.app -ov -format UDZO snake_rogue-macos-x64.dmg
+          mkdir -p snake_rogue-macos-x64
+          cp target/x86_64-apple-darwin/release/snake_rogue snake_rogue-macos-x64/
+          tar -czvf snake_rogue-macos-x64.tar.gz snake_rogue-macos-x64
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: snake_rogue-macos-x64.dmg
+          files: snake_rogue-macos-x64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # macOS ARM64
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build ARM64
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Package ARM64
+        run: |
+          mkdir -p snake_rogue-macos-arm64
+          cp target/aarch64-apple-darwin/release/snake_rogue snake_rogue-macos-arm64/
+          tar -czvf snake_rogue-macos-arm64.tar.gz snake_rogue-macos-arm64
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: snake_rogue-macos-arm64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
