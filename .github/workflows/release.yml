@@ -16,30 +16,31 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Add target
+        run: rustup target add x86_64-unknown-linux-gnu
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libssl-dev pkg-config libasound2-dev
 
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --target x86_64-unknown-linux-gnu
 
       - name: Package
         run: |
-          cd target/release
+          cd target/x86_64-unknown-linux-gnu/release
           mkdir -p snake_rogue-linux-x64
           cp snake_rogue snake_rogue-linux-x64/
           tar -czvf snake_rogue-linux-x64.tar.gz snake_rogue-linux-x64
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/x86_64-unknown-linux-gnu/release/snake_rogue-linux-x64.tar.gz
+          draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/release/snake_rogue-linux-x64.tar.gz
-          asset_name: snake_rogue-linux-x64.tar.gz
-          asset_content_type: application/gzip
 
   # Windows
   build-windows:
@@ -51,25 +52,26 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Add target
+        run: rustup target add x86_64-pc-windows-msvc
+
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --target x86_64-pc-windows-msvc
 
       - name: Package
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Path target/release/snake_rogue-windows-x64 -Force
-          Copy-Item target/release/snake_rogue.exe target/release/snake_rogue-windows-x64/
-          Compress-Archive -Path target/release/snake_rogue-windows-x64 -DestinationPath snake_rogue-windows-x64.zip
+          New-Item -ItemType Directory -Path target/x86_64-pc-windows-msvc/release/snake_rogue-windows-x64 -Force
+          Copy-Item target/x86_64-pc-windows-msvc/release/snake_rogue.exe target/x86_64-pc-windows-msvc/release/snake_rogue-windows-x64/
+          Compress-Archive -Path target/x86_64-pc-windows-msvc/release/snake_rogue-windows-x64 -DestinationPath snake_rogue-windows-x64.zip
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
+        with:
+          files: snake_rogue-windows-x64.zip
+          draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: snake_rogue-windows-x64.zip
-          asset_name: snake_rogue-windows-x64.zip
-          asset_content_type: application/zip
 
   # macOS x86_64
   build-macos-x64:
@@ -81,6 +83,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Add target
+        run: rustup target add x86_64-apple-darwin
+
       - name: Build x86_64
         run: cargo build --release --target x86_64-apple-darwin
 
@@ -91,14 +96,12 @@ jobs:
           tar -czvf snake_rogue-macos-x64.tar.gz snake_rogue-macos-x64
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
+        with:
+          files: snake_rogue-macos-x64.tar.gz
+          draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: snake_rogue-macos-x64.tar.gz
-          asset_name: snake_rogue-macos-x64.tar.gz
-          asset_content_type: application/gzip
 
   # macOS ARM64
   build-macos-arm64:
@@ -110,6 +113,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Add target
+        run: rustup target add aarch64-apple-darwin
+
       - name: Build ARM64
         run: cargo build --release --target aarch64-apple-darwin
 
@@ -120,11 +126,9 @@ jobs:
           tar -czvf snake_rogue-macos-arm64.tar.gz snake_rogue-macos-arm64
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
+        with:
+          files: snake_rogue-macos-arm64.tar.gz
+          draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: snake_rogue-macos-arm64.tar.gz
-          asset_name: snake_rogue-macos-arm64.tar.gz
-          asset_content_type: application/gzip
