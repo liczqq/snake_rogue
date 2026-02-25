@@ -32,19 +32,21 @@ jobs:
           cp snake_rogue snake_rogue-linux-x64/
           tar -czvf snake_rogue-linux-x64.tar.gz snake_rogue-linux-x64
 
-      # Windows
+      # Windows (MinGW)
       - name: Add Windows target
-        run: rustup target add x86_64-pc-windows-msvc
+        run: rustup target add x86_64-pc-windows-gnu
+
+      - name: Install MinGW
+        run: sudo apt-get install -y mingw-w64
 
       - name: Build Windows
-        run: cargo build --release --target x86_64-pc-windows-msvc
+        run: cargo build --release --target x86_64-pc-windows-gnu
 
       - name: Package Windows
-        shell: bash
         run: |
           mkdir -p snake_rogue-windows-x64
-          cp target/x86_64-pc-windows-msvc/release/snake_rogue.exe snake_rogue-windows-x64/
-          powershell -Command "Compress-Archive -Path 'snake_rogue-windows-x64' -DestinationPath 'snake_rogue-windows-x64.zip'"
+          cp target/x86_64-pc-windows-gnu/release/snake_rogue.exe snake_rogue-windows-x64/
+          tar -czvf snake_rogue-windows-x64.tar.gz snake_rogue-windows-x64
 
       # macOS x86_64
       - name: Add macOS x64 target
@@ -76,7 +78,7 @@ jobs:
       - name: Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "target/x86_64-unknown-linux-gnu/release/snake_rogue-linux-x64.tar.gz,snake_rogue-windows-x64.zip,snake_rogue-macos-x64.tar.gz,snake_rogue-macos-arm64.tar.gz"
+          artifacts: "target/x86_64-unknown-linux-gnu/release/snake_rogue-linux-x64.tar.gz,snake_rogue-windows-x64.tar.gz,snake_rogue-macos-x64.tar.gz,snake_rogue-macos-arm64.tar.gz"
           artifactClient: github
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
